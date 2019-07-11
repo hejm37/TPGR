@@ -535,10 +535,7 @@ class TPGR():
 
         self.aval_list_t = self.aval_list
         self.aval_eval_list_t = self.aval_eval_list
-        print(self.aval_list_t == self.aval_list)
-        print(self.aval_eval_list_t == self.aval_eval_list)
 
-        self.pn_outputs = []
         ## get action index
         ### for sampling, using multinomial
         for i in range(self.bc_dim):
@@ -555,7 +552,6 @@ class TPGR():
                     else:
                         self.forward_prob = tf.nn.softmax(tf.squeeze(tf.matmul(h, tf.nn.embedding_lookup(self.W_list[k], self.forward_index)) +
                                                                  tf.expand_dims(tf.nn.embedding_lookup(self.b_list[k], self.forward_index), axis=1)), axis=1)
-                    self.pn_outputs.append(self.forward_prob)
                 else:
                     if i == 0:
                         h = tf.nn.relu(tf.matmul(h, self.W_list[k][0]) + self.b_list[k][0])
@@ -627,23 +623,23 @@ class TPGR():
         self.forward_sampled_action_eval = tf.nn.embedding_lookup(self.code_to_id, self.action_index_eval)
 
         ## get policy network outputs
-        # self.pre_c = tf.cast(tf.concat([tf.zeros(shape=[self.train_batch_size, 1]), tf.nn.embedding_lookup(self.bc_embeddings, self.cur_action)[:, 0:-1]], axis=1), dtype=tf.int32)
-        # self.pre_con = tf.Variable(tf.zeros(shape=[self.train_batch_size, 1], dtype=tf.int32))
-        # self.index = []
-        # for i in range(self.bc_dim):
-        #     self.index.append(self.node_num_before_depth_i(i) + self.child_num * self.pre_con + self.pre_c[:, i:i+1])
-        #     self.pre_con = self.pre_con * self.child_num + self.pre_c[:, i:i+1]
-        # self.index = tf.concat(self.index, axis=1)
-        # self.pn_outputs = []
-        # for i in range(self.bc_dim):
-        #     h = tf.expand_dims(self.user_state, axis=1)
-        #     for k in range(len(self.W_list)):
-        #         if k == (len(self.W_list) - 1):
-        #             self.pn_outputs.append(tf.nn.softmax(tf.squeeze(tf.matmul(h, tf.nn.embedding_lookup(self.W_list[k], self.index[:, i])) +
-        #                                                             tf.expand_dims(tf.nn.embedding_lookup(self.b_list[k], self.index[:, i]), axis=1))))
-        #         else:
-        #             h = tf.nn.relu(tf.matmul(h, tf.nn.embedding_lookup(self.W_list[k], self.index[:, i])) +
-        #                            tf.expand_dims(tf.nn.embedding_lookup(self.b_list[k], self.index[:, i]), axis=1))
+        self.pre_c = tf.cast(tf.concat([tf.zeros(shape=[self.train_batch_size, 1]), tf.nn.embedding_lookup(self.bc_embeddings, self.cur_action)[:, 0:-1]], axis=1), dtype=tf.int32)
+        self.pre_con = tf.Variable(tf.zeros(shape=[self.train_batch_size, 1], dtype=tf.int32))
+        self.index = []
+        for i in range(self.bc_dim):
+            self.index.append(self.node_num_before_depth_i(i) + self.child_num * self.pre_con + self.pre_c[:, i:i+1])
+            self.pre_con = self.pre_con * self.child_num + self.pre_c[:, i:i+1]
+        self.index = tf.concat(self.index, axis=1)
+        self.pn_outputs = []
+        for i in range(self.bc_dim):
+            h = tf.expand_dims(self.user_state, axis=1)
+            for k in range(len(self.W_list)):
+                if k == (len(self.W_list) - 1):
+                    self.pn_outputs.append(tf.nn.softmax(tf.squeeze(tf.matmul(h, tf.nn.embedding_lookup(self.W_list[k], self.index[:, i])) +
+                                                                    tf.expand_dims(tf.nn.embedding_lookup(self.b_list[k], self.index[:, i]), axis=1))))
+                else:
+                    h = tf.nn.relu(tf.matmul(h, tf.nn.embedding_lookup(self.W_list[k], self.index[:, i])) +
+                                   tf.expand_dims(tf.nn.embedding_lookup(self.b_list[k], self.index[:, i]), axis=1))
 
         self.bias_variables = self.b_list + self.rnn_variables[3:]
         self.weight_variables = self.W_list + self.rnn_variables[:3]
@@ -657,7 +653,6 @@ class TPGR():
                         tf.gather_nd(self.pn_outputs[i], tf.concat([tf.expand_dims(tf.range(self.train_batch_size), axis=1), tf.cast(self.a_code[:, i:i+1], tf.int32)], axis=1)), clip_value_min=1e-30, clip_value_max=1.0)
                     ), axis=1)
                  for i in range(self.bc_dim)], axis=1), axis=1)
-
         self.negative_likelyhood = -self.log_pi
         self.l2_norm = tf.add_n([tf.nn.l2_loss(item) for item in (self.weight_variables + self.bias_variables)])
         self.weighted_negative_likelyhood_with_l2_norm = self.negative_likelyhood * self.cur_q + self.entropy_factor * self.train_mse + self.l2_factor * self.l2_norm
@@ -727,9 +722,6 @@ class TPGR():
 
     def update_avalable_items(self, sampled_items):
         sampled_codes = self.id_to_code[sampled_items]
-        print(type(sampled_codes))
-        print(len(sampled_codes))
-        print(len(sampled_codes[0]))
         if self.is_eval:
             aval_val_tmp = np.tile(np.expand_dims(self.aval_val, axis=1), [1, self.eval_batch_size, 1])
         else:
@@ -841,7 +833,6 @@ class TPGR():
 
         # sample an episode for each user
         for s in range(eval_step_num):
-            print("S:", s)
             start = s * self.eval_batch_size
             end = (s + 1) * self.eval_batch_size
             self.update_avalable_items(ars[0][0][start:end])
@@ -850,7 +841,6 @@ class TPGR():
             stop_flag = False
             entropy_list.append([])
             while True:
-                print("Step_count:", step_count)
                 feed_dict = {self.forward_action: ars[0][step_count][start:end],
                              self.forward_reward: ars[1][step_count][start:end],
                              self.forward_statistic: ars[2][step_count][start:end],
@@ -873,7 +863,6 @@ class TPGR():
                     ars[2][step_count].append(self.env[start + j].get_statistic())
                     if reward[1]:
                         stop_flag = True
-                exit(0)
                 if stop_flag:
                     break
 
