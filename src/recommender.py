@@ -4,8 +4,12 @@ from tpgr import *
 import utils
 import os
 
+from tensorflow.python.util import deprecation as deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 # one can enable GPU by changing the following environment parameter
-os.environ["CUDA_VISIBLE_DEVICES"]="-1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="2"
 
 class Recommender():
     def __init__(self, config):

@@ -16,3 +16,7 @@ def pickle_save(object, file_path):
 def pickle_load(file_path):
     f = open(file_path, 'rb')
     return pickle.load(f)
+
+def print_and_exit(tf_object):
+    print(tf_object.shape)
+    exit(0)
