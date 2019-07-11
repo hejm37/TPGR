@@ -2,6 +2,7 @@
 data/model/*
 data/result/*
 data/run_time/*
+data/log/*
 
 # Ignore python cache files
 src/__pycache__
