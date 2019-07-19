@@ -441,7 +441,7 @@ class TPGR():
         self.eval_batch_size = int(self.config['TPGR']['EVAL_BATCH_SIZE'])
         self.train_batch_size = self.sample_episodes_per_batch * self.sample_users_per_batch
 
-        self.result_file_path = '../data/result/result_log/' + time.strftime('%Y%m%d%H%M%S') + '_' + self.config['ENV']['ALPHA'] + '_' + self.config['ENV']['RATING_FILE']
+        self.result_file_path = '../data/result/result_log/' + time.strftime('%Y%m%d%H%M%S') + '_' + self.config['ENV']['ALPHA'] + '_' + self.config['ENV']['BETA'] + '_' + self.config['ENV']['RATING_FILE']
         self.rnn_file_path = '../data/run_time/%s_rnn_model_%s' % (self.config['ENV']['RATING_FILE'], self.config['TPGR']['RNN_MODEL_VS'])
         self.load_model = self.config['TPGR']['LOAD_MODEL'] == 'T'
         self.load_model_path = '../data/model/%s_tpgr_model_%s' % (self.config['ENV']['RATING_FILE'], self.config['TPGR']['MODEL_LOAD_VS'])
