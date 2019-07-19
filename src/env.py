@@ -1,5 +1,6 @@
-#coding: utf-8
+# coding: utf-8
 
+from collections import deque
 from scipy.sparse import coo_matrix
 from tqdm import tqdm
 import run_time_tools
@@ -7,8 +8,10 @@ import numpy as np
 import utils
 import os
 
+
 class Env():
-    def __init__(self, config, user_num=None, item_num=None, r_matrix=None, user_to_rele_num=None):
+    def __init__(self, config, user_num=None, item_num=None,
+                 r_matrix=None, user_to_rele_num=None):
         self.config = config
         self.action_dim = int(self.config['META']['ACTION_DIM'])
         self.episode_length = int(self.config['META']['EPISODE_LENGTH'])
@@ -16,9 +19,32 @@ class Env():
         self.boundary_rating = float(self.config['ENV']['BOUNDARY_RATING'])
         self.log = utils.Log()
         # to normalize the reward into (-1, 1], reward = self.a * rating + self.b
-        self.a = 2.0 / (float(self.config['ENV']['MAX_RATING']) - float(self.config['ENV']['MIN_RATING']))
-        self.b = - (float(self.config['ENV']['MAX_RATING']) + float(self.config['ENV']['MIN_RATING'])) / (float(self.config['ENV']['MAX_RATING']) - float(self.config['ENV']['MIN_RATING']))
+        self.a = 2.0 / (float(self.config['ENV']['MAX_RATING']) -
+                        float(self.config['ENV']['MIN_RATING']))
+        self.b = - (float(self.config['ENV']['MAX_RATING']) +
+                    float(self.config['ENV']['MIN_RATING'])) /      \
+            (float(self.config['ENV']['MAX_RATING']) -
+             float(self.config['ENV']['MIN_RATING']))
 
+        # calculate boredom
+        self.beta = float(self.config['ENV']['BETA'])
+        self.boredom_len = int(self.config['ENV']['BOREDOM_LENGTH'])
+        self.boredom_order = int(self.config['ENV']['BOREDOM_ORDER'])
+        self.genre_cnt = int(self.config['GENRE']['GENRE_COUNT'])
+        self.genre_paras = [[] for i in range(self.genre_cnt)]   # dict to list
+        genres = [self.config['GENRE']['GENRE_'+str(i)] 
+                    for i in range(self.genre_cnt)]     # name only used in visulization and read genre_paras
+        for i in range(self.genre_cnt):
+            for j in range(self.boredom_order + 1):
+                self.genre_paras[i].append(float(self.config['GENRE'][genres[i] + '_' + str(j)]))
+
+        # read movies' genres file
+        genre_file_path = '../data/rating/' + self.config['ENV']['GENRE_FILE']
+        self.item_genre, self.item_subId, self.genre_items = \
+            utils.read_genre_file(genre_file_path, self.genre_cnt)
+        self.genre_item_nums = [len(items) for items in self.genre_items]
+
+        # read rating file
         if not user_num is None:
             self.user_num = user_num
             self.item_num = item_num
@@ -27,12 +53,13 @@ class Env():
             self.boundry_user_id = int(self.user_num * 0.8)
             self.test_user_num = self.user_num - self.boundry_user_id
         else:
-            rating_file_path = '../data/rating/' + self.config['ENV']['RATING_FILE']
+            rating_file_path = '../data/rating/' + \
+                self.config['ENV']['RATING_FILE']
             rating = np.loadtxt(fname=rating_file_path, delimiter='\t')
 
             self.user = set()
             self.item = set()
-            for i,j,k in rating:
+            for i, j, k in rating:
                 self.user.add(int(i))
                 self.item.add(int(j))
 
@@ -41,14 +68,17 @@ class Env():
             self.boundry_user_id = int(self.user_num * 0.8)
             self.test_user_num = self.user_num - self.boundry_user_id
 
-            # if you replace the rating file without renaming, you should delete the old env object file before you run the code
-            env_object_path = '../data/run_time/%s_env_objects'%self.config['ENV']['RATING_FILE']
+            # if you replace the rating file without renaming, you should delete
+            # the old env object file before you run the code
+            env_object_path = '../data/run_time/%s_env_objects' %                   \
+                self.config['ENV']['RATING_FILE']
             if os.path.exists(env_object_path):
                 objects = utils.pickle_load(env_object_path)
                 self.r_matrix = objects['r_matrix']
                 self.user_to_rele_num = objects['user_to_rele_num']
             else:
-                self.r_matrix = coo_matrix((rating[:, 2], (rating[:, 0].astype(int), rating[:, 1].astype(int)))).todok()
+                self.r_matrix = coo_matrix((rating[:, 2], (rating[:, 0].astype(int),
+                                                           rating[:, 1].astype(int)))).todok()
 
                 self.log.log('construct relevant item number for each user')
                 self.user_to_rele_num = {}
@@ -60,12 +90,17 @@ class Env():
                     self.user_to_rele_num[u] = rele_num
 
                 # dump the env object
-                utils.pickle_save({'r_matrix': self.r_matrix, 'user_to_rele_num': self.user_to_rele_num}, env_object_path)
+                utils.pickle_save({'r_matrix': self.r_matrix,
+                                   'user_to_rele_num': self.user_to_rele_num},
+                                  env_object_path)
 
-            item_embedding_file_path = '../data/run_time/' + self.config['ENV']['RATING_FILE'] + '_item_embedding_dim%d'%self.action_dim
+            item_embedding_file_path = '../data/run_time/' +                        \
+                self.config['ENV']['RATING_FILE'] +         \
+                '_item_embedding_dim%d' % self.action_dim
             if not os.path.exists(item_embedding_file_path):
                 run_time_tools.mf_with_bias(self.config)
-            self.item_embedding = np.loadtxt(item_embedding_file_path, dtype=float, delimiter='\t')
+            self.item_embedding = np.loadtxt(item_embedding_file_path,
+                                             dtype=float, delimiter='\t')
 
     def get_init_data(self):
         return self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num
@@ -80,6 +115,7 @@ class Env():
         self.con_not_pos_count = 0
         self.all_neg_count = 0
         self.all_pos_count = 0
+        self.past_w_items = deque([], self.boredom_len)
         self.history_items = set()
 
     def get_relevant_item_num(self):
@@ -123,10 +159,11 @@ class Env():
 
         self.history_items.add(item_id)
 
-        if self.step_count == self.episode_length or len(self.history_items) == self.item_num:
+        if self.step_count == self.episode_length or                                \
+                len(self.history_items) == self.item_num:
             reward[1] = True
 
-        reward[0] += self.alpha * sr
+        reward[0] += self.alpha * sr + self.beta * self.get_boredom(item_id)
         return (reward[0], reward[1])
 
     def get_statistic(self):
@@ -140,8 +177,24 @@ class Env():
         con_zero_count = self.con_zero_count
         con_not_neg_count = self.con_not_neg_count
         con_not_pos_count = self.con_not_pos_count
-        result = [all_neg_count, all_pos_count, zero_count, step_count, con_neg_count, con_pos_count, con_zero_count, con_not_neg_count, con_not_pos_count]
+        result = [all_neg_count, all_pos_count, zero_count, step_count,
+                  con_neg_count, con_pos_count, con_zero_count,
+                  con_not_neg_count, con_not_pos_count]
         return [item / float(self.episode_length) for item in result]
+
+    def get_boredom(self, item_id):
+        # calculate rho(s, a)
+        length = len(self.past_w_items)
+        rho = 0
+        for i in range(length):
+            if self.item_genre[self.past_w_items[i]] == self.item_genre[item_id]:
+                rho += 1 / (i+1)
+        # calculate r_b(s, a)
+        reward_b = 0
+        genre_of_item = self.item_genre[item_id]
+        for i in range(len(self.genre_paras[genre_of_item])):
+            reward_b += self.genre_paras[genre_of_item][i] * rho**i
+        return reward_b
 
     def get_rating(self, item_id):
         return self.r_matrix[self.user_id, item_id]
