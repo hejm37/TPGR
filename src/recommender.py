@@ -54,5 +54,5 @@ class Recommender():
                 if i % log_step == 0:
                     tpgr.evaluate()
                     log.log('evaluated\n', True)
-                # tpgr.train()
+                tpgr.train()
             log.log('end training tpgr')
