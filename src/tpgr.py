@@ -450,13 +450,13 @@ class TPGR():
         self.hidden_units = [int(item) for item in self.config['TPGR']['HIDDEN_UNITS'].split(',')] if self.config['TPGR']['HIDDEN_UNITS'].lower() != 'none' else []
 
         self.forward_env = Env(self.config)
-        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num = self.forward_env.get_init_data()
+        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package = self.forward_env.get_init_data()
 
         self.boundry_user_id = self.forward_env.boundry_user_id
         self.test_user_num = int(self.user_num/self.eval_batch_size)*self.eval_batch_size-self.boundry_user_id
         self.bc_dim = int(math.ceil(math.log(self.item_num, self.child_num)))
 
-        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num) for i in range(max(self.train_batch_size, self.eval_batch_size * int(math.ceil(self.user_num / self.eval_batch_size))))]
+        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package) for i in range(max(self.train_batch_size, self.eval_batch_size * int(math.ceil(self.user_num / self.eval_batch_size))))]
 
         ###
         self.rnn_input_dim = self.action_dim + self.reward_dim + self.statistic_dim
