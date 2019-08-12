@@ -37,8 +37,8 @@ class PRE_TRAIN():
 
         self.forward_env = Env(self.config)
         self.boundry_user_id = self.forward_env.boundry_user_id
-        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num = self.forward_env.get_init_data()
-        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num) for i in range(max(self.user_num, self.batch_size))]
+        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package = self.forward_env.get_init_data()
+        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package) for i in range(max(self.user_num, self.batch_size))]
 
         self.pre_training_steps = 0
         self.make_graph()

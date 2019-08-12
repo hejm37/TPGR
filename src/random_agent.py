@@ -20,10 +20,10 @@ class RandomAgent():
         self.result_file_path = '../data/result/result_log/' + time.strftime('%Y%m%d%H%M%S') + '_' + self.config['ENV']['ALPHA'] + '_' + self.config['ENV']['BETA'] + '_' + self.config['ENV']['RATING_FILE']
 
         self.forward_env = Env(self.config)
-        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num = self.forward_env.get_init_data()
+        self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package = self.forward_env.get_init_data()
         self.boundry_user_id = self.forward_env.boundry_user_id
 
-        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num) for i in range(max(self.train_batch_size, self.eval_batch_size * int(math.ceil(self.user_num / self.eval_batch_size))))]
+        self.env = [Env(self.config, self.user_num, self.item_num, self.r_matrix, self.user_to_rele_num, genre_package) for i in range(max(self.train_batch_size, self.eval_batch_size * int(math.ceil(self.user_num / self.eval_batch_size))))]
 
         self.storage = []
         self.training_steps = 0
